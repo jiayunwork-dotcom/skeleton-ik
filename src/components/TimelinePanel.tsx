@@ -17,6 +17,16 @@ export default function TimelinePanel() {
     setInterpolation,
     selectedJointId,
     skeleton,
+    showGraphEditor,
+    setShowGraphEditor,
+    onionSkinEnabled,
+    setOnionSkinEnabled,
+    onionSkinFramesBefore,
+    setOnionSkinFramesBefore,
+    onionSkinFramesAfter,
+    setOnionSkinFramesAfter,
+    onionSkinOpacity,
+    setOnionSkinOpacity,
   } = useAppStore();
   
   const [fps, setFps] = useState(30);
@@ -147,6 +157,63 @@ export default function TimelinePanel() {
               <option key={type.value} value={type.value}>{type.label}</option>
             ))}
           </select>
+        </div>
+        
+        <div className="divider" />
+        
+        <button 
+          className={`tool-btn ${showGraphEditor ? 'active' : ''}`}
+          onClick={() => setShowGraphEditor(!showGraphEditor)}
+          title="曲线编辑器"
+        >
+          📈 曲线编辑器
+        </button>
+        
+        <div className="onion-skin-controls">
+          <label className="onion-toggle">
+            <input 
+              type="checkbox"
+              checked={onionSkinEnabled}
+              onChange={(e) => setOnionSkinEnabled(e.target.checked)}
+            />
+            <span title="洋葱皮">🧅 洋葱皮</span>
+          </label>
+          {onionSkinEnabled && (
+            <>
+              <div className="onion-subcontrol">
+                <label>前:</label>
+                <input 
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={onionSkinFramesBefore}
+                  onChange={(e) => setOnionSkinFramesBefore(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="onion-subcontrol">
+                <label>后:</label>
+                <input 
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={onionSkinFramesAfter}
+                  onChange={(e) => setOnionSkinFramesAfter(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="onion-subcontrol">
+                <label>透明度:</label>
+                <input 
+                  type="range"
+                  min={0.05}
+                  max={0.8}
+                  step={0.05}
+                  value={onionSkinOpacity}
+                  onChange={(e) => setOnionSkinOpacity(parseFloat(e.target.value))}
+                />
+                <span className="value-label">{(onionSkinOpacity * 100).toFixed(0)}%</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
       

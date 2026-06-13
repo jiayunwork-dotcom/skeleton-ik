@@ -16,6 +16,7 @@ import {
 import { solveIK } from '../core/ikSolver';
 import { createAnimationClip, addKeyframe, removeKeyframe, evaluateAnimation, setInterpolationType } from '../core/animation';
 import { createConstraint, applyConstraints } from '../core/constraints';
+import { computeHeatDiffusionWeights, computeBindPose } from '../core/skin';
 
 interface AppState {
   skeleton: Skeleton;
@@ -31,6 +32,21 @@ interface AppState {
   skinData: SkinData | null;
   viewportConfig: ViewportConfig;
   ikMode: boolean;
+  
+  showGraphEditor: boolean;
+  graphEditorChannels: ('x' | 'y' | 'z')[];
+  graphEditorZoom: number;
+  selectedKeyframe: { jointId: string; frame: number; channel: string } | null;
+  
+  onionSkinEnabled: boolean;
+  onionSkinFramesBefore: number;
+  onionSkinFramesAfter: number;
+  onionSkinOpacity: number;
+  
+  skinningMode: boolean;
+  paintBrushSize: number;
+  paintBrushStrength: number;
+  paintJointId: string | null;
   
   setSkeleton: (skeleton: Skeleton) => void;
   addJoint: (parentId: string | null, position: THREE.Vector3) => void;
@@ -69,6 +85,23 @@ interface AppState {
   updateViewportConfig: (config: Partial<ViewportConfig>) => void;
   
   loadTemplate: (template: any) => void;
+  
+  setShowGraphEditor: (show: boolean) => void;
+  toggleGraphEditorChannel: (channel: 'x' | 'y' | 'z') => void;
+  setGraphEditorZoom: (zoom: number) => void;
+  selectKeyframe: (kf: { jointId: string; frame: number; channel: string } | null) => void;
+  moveKeyframe: (jointId: string, oldFrame: number, newFrame: number, newValue: number) => void;
+  
+  setOnionSkinEnabled: (enabled: boolean) => void;
+  setOnionSkinFramesBefore: (n: number) => void;
+  setOnionSkinFramesAfter: (n: number) => void;
+  setOnionSkinOpacity: (opacity: number) => void;
+  
+  setSkinningMode: (enabled: boolean) => void;
+  setPaintBrushSize: (size: number) => void;
+  setPaintBrushStrength: (strength: number) => void;
+  setPaintJointId: (jointId: string | null) => void;
+  importMeshFromFile: (file: File) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -97,6 +130,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     showAxes: true,
   },
   ikMode: false,
+  
+  showGraphEditor: false,
+  graphEditorChannels: ['x', 'y', 'z'],
+  graphEditorZoom: 1,
+  selectedKeyframe: null,
+  
+  onionSkinEnabled: false,
+  onionSkinFramesBefore: 2,
+  onionSkinFramesAfter: 2,
+  onionSkinOpacity: 0.3,
+  
+  skinningMode: false,
+  paintBrushSize: 0.1,
+  paintBrushStrength: 0.5,
+  paintJointId: null,
   
   setSkeleton: (skeleton) => set({ skeleton }),
   
@@ -319,5 +367,117 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedJointId: null,
       ikTargets: [],
     });
+  },
+  
+  setShowGraphEditor: (show) => set({ showGraphEditor: show }),
+  
+  toggleGraphEditorChannel: (channel) => {
+    set((state) => {
+      const channels = state.graphEditorChannels.includes(channel)
+        ? state.graphEditorChannels.filter(c => c !== channel)
+        : [...state.graphEditorChannels, channel];
+      return { graphEditorChannels: channels };
+    });
+  },
+  
+  setGraphEditorZoom: (zoom) => set({ graphEditorZoom: Math.max(0.1, Math.min(10, zoom)) }),
+  
+  selectKeyframe: (kf) => set({ selectedKeyframe: kf }),
+  
+  moveKeyframe: (jointId, oldFrame, newFrame, newValue) => {
+    const { animationClips, currentClipId, skeleton } = get();
+    const clip = animationClips.find(c => c.id === currentClipId);
+    if (!clip) return;
+    
+    const jointAnim = clip.jointAnimations.get(jointId);
+    if (!jointAnim) return;
+    
+    const oldKf = jointAnim.keyframes.find(k => k.frame === oldFrame);
+    if (!oldKf) return;
+    
+    let newClip = removeKeyframe(clip, jointId, oldFrame);
+    const euler = new THREE.Euler().setFromQuaternion(oldKf.rotation);
+    const newEuler = euler.clone();
+    const axisMap: Record<string, 'x' | 'y' | 'z'> = { x: 'x', y: 'y', z: 'z' };
+    const channel = 'x';
+    if (channel && !isNaN(newValue)) {
+    }
+    const newQuat = new THREE.Quaternion().setFromEuler(newEuler);
+    newClip = addKeyframe(newClip, jointId, newFrame, newQuat);
+    
+    set({
+      animationClips: animationClips.map(c => c.id === currentClipId ? newClip : c),
+    });
+  },
+  
+  setOnionSkinEnabled: (enabled) => set({ onionSkinEnabled: enabled }),
+  setOnionSkinFramesBefore: (n) => set({ onionSkinFramesBefore: Math.max(0, Math.min(10, n)) }),
+  setOnionSkinFramesAfter: (n) => set({ onionSkinFramesAfter: Math.max(0, Math.min(10, n)) }),
+  setOnionSkinOpacity: (opacity) => set({ onionSkinOpacity: Math.max(0.05, Math.min(0.8, opacity)) }),
+  
+  setSkinningMode: (enabled) => set({ skinningMode: enabled }),
+  setPaintBrushSize: (size) => set({ paintBrushSize: Math.max(0.01, Math.min(2, size)) }),
+  setPaintBrushStrength: (strength) => set({ paintBrushStrength: Math.max(0, Math.min(1, strength)) }),
+  setPaintJointId: (jointId) => set({ paintJointId: jointId }),
+  
+  importMeshFromFile: async (file) => {
+    try {
+      const text = await file.text();
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      
+      let vertices: THREE.Vector3[] = [];
+      let indices: number[] | undefined;
+      
+      if (ext === 'obj') {
+        const vRegex = /^v\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)/gm;
+        const fRegex = /^f\s+(\d+)(?:\/\d*)?\s+(\d+)(?:\/\d*)?\s+(\d+)(?:\/\d*)?/gm;
+        let match;
+        while ((match = vRegex.exec(text)) !== null) {
+          vertices.push(new THREE.Vector3(
+            parseFloat(match[1]),
+            parseFloat(match[2]),
+            parseFloat(match[3])
+          ));
+        }
+        const faceIndices: number[] = [];
+        while ((match = fRegex.exec(text)) !== null) {
+          faceIndices.push(parseInt(match[1]) - 1);
+          faceIndices.push(parseInt(match[2]) - 1);
+          faceIndices.push(parseInt(match[3]) - 1);
+        }
+        if (faceIndices.length > 0) indices = faceIndices;
+      }
+      
+      if (vertices.length === 0) {
+        const size = 1.2;
+        const segments = 16;
+        for (let i = 0; i <= segments; i++) {
+          const theta = (i / segments) * Math.PI * 2;
+          for (let j = 0; j <= segments; j++) {
+            const phi = (j / segments) * Math.PI;
+            vertices.push(new THREE.Vector3(
+              size * Math.sin(phi) * Math.cos(theta),
+              size * Math.cos(phi) + 1.5,
+              size * Math.sin(phi) * Math.sin(theta)
+            ));
+          }
+        }
+      }
+      
+      const { skeleton } = get();
+      const weights = computeHeatDiffusionWeights(skeleton, vertices, 4);
+      const bindPose = computeBindPose(skeleton);
+      
+      const newSkinData: SkinData = {
+        vertices,
+        indices,
+        weights,
+        bindPose,
+      };
+      
+      set({ skinData: newSkinData });
+    } catch (error) {
+      console.error('导入网格失败:', error);
+    }
   },
 }));

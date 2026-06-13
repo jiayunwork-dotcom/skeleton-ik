@@ -6,9 +6,11 @@ import PropertiesPanel from './components/PropertiesPanel';
 import IKPanel from './components/IKPanel';
 import TimelinePanel from './components/TimelinePanel';
 import ExportPanel from './components/ExportPanel';
+import GraphEditor from './components/GraphEditor';
+import SkinPanel from './components/SkinPanel';
 import './App.css';
 
-type RightPanelTab = 'properties' | 'ik' | 'export';
+type RightPanelTab = 'properties' | 'ik' | 'skin' | 'export';
 
 function App() {
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('properties');
@@ -26,8 +28,11 @@ function App() {
           <HierarchyPanel />
         </aside>
         
-        <main className="viewport-container">
-          <Viewport />
+        <main className="viewport-and-graph">
+          <div className="viewport-container">
+            <Viewport />
+          </div>
+          <GraphEditor />
         </main>
         
         <aside className="right-panel">
@@ -45,6 +50,12 @@ function App() {
               IK
             </button>
             <button 
+              className={rightPanelTab === 'skin' ? 'active' : ''}
+              onClick={() => setRightPanelTab('skin')}
+            >
+              蒙皮
+            </button>
+            <button 
               className={rightPanelTab === 'export' ? 'active' : ''}
               onClick={() => setRightPanelTab('export')}
             >
@@ -55,6 +66,7 @@ function App() {
           <div className="panel-content">
             {rightPanelTab === 'properties' && <PropertiesPanel />}
             {rightPanelTab === 'ik' && <IKPanel />}
+            {rightPanelTab === 'skin' && <SkinPanel />}
             {rightPanelTab === 'export' && <ExportPanel />}
           </div>
         </aside>

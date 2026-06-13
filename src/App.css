@@ -28,9 +28,14 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  min-width: 800px;
-  min-height: 600px;
   overflow: hidden;
+}
+
+@media (max-width: 1000px) {
+  .app-container {
+    min-width: 800px;
+    min-height: 600px;
+  }
 }
 
 .app-header {
@@ -108,21 +113,21 @@ body {
 }
 
 .main-content {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(200px, 220px) 1fr minmax(220px, 260px);
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  width: 100%;
 }
 
 .left-panel,
 .right-panel {
-  width: 250px;
-  min-width: 200px;
-  flex: 0 0 auto;
   background: #16213e;
   border: 1px solid #0f3460;
   overflow-y: auto;
   overflow-x: hidden;
+  min-width: 0;
 }
 
 .left-panel {
@@ -133,12 +138,23 @@ body {
   border-left: 1px solid #0f3460;
 }
 
+.viewport-and-graph {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  background: #1a1a2e;
+}
+
 .viewport-container {
-  flex: 1 1 auto;
   position: relative;
   background: #1a1a2e;
-  min-width: 100px;
+  min-width: 400px;
   min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .panel-tabs {
@@ -782,3 +798,353 @@ summary:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: #1a4a7a;
 }
+
+.graph-editor {
+  display: flex;
+  flex-direction: column;
+  background: #0d1421;
+  border-top: 1px solid #0f3460;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.graph-editor.visible {
+  height: 280px;
+  min-height: 180px;
+}
+
+.graph-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #0f3460;
+  flex-shrink: 0;
+}
+
+.graph-editor-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.graph-editor-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.channel-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.channel-selector label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+
+.channel-selector label:hover {
+  background: #1a4a7a;
+}
+
+.channel-selector label input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.channel-x { color: #ff6b6b; }
+.channel-y { color: #4ecdc4; }
+.channel-z { color: #ffe66d; }
+.channel-w { color: #c792ea; }
+
+.graph-canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.graph-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.skin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skin-section {
+  background: #0f3460;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.skin-section h4 {
+  font-size: 0.85rem;
+  color: #e94560;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1a4a7a;
+}
+
+.import-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #16213e;
+  border: 1px dashed #0f3460;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.import-btn:hover {
+  background: #1a4a7a;
+  border-color: #2a6aae;
+}
+
+.import-btn input {
+  display: none;
+}
+
+.mesh-info {
+  margin-top: 10px;
+  padding: 8px;
+  background: #16213e;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #8892b0;
+}
+
+.mesh-info p {
+  margin-bottom: 3px;
+}
+
+.mesh-info strong {
+  color: #4ecdc4;
+}
+
+.preset-mesh-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.preset-mesh-btn {
+  padding: 8px 6px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+}
+
+.preset-mesh-btn:hover {
+  background: #1a4a7a;
+  border-color: #2a6aae;
+}
+
+.weight-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brush-mode-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.brush-mode-toggle button {
+  flex: 1;
+  padding: 8px 10px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  color: #8892b0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.brush-mode-toggle button.active {
+  background: #e94560;
+  border-color: #e94560;
+  color: #fff;
+}
+
+.brush-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brush-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brush-setting-row label {
+  min-width: 60px;
+  font-size: 0.75rem;
+  color: #8892b0;
+}
+
+.brush-setting-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  background: #0f3460;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.brush-value-display {
+  min-width: 40px;
+  font-size: 0.75rem;
+  color: #4ecdc4;
+  text-align: right;
+}
+
+.weight-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.weight-action-btn {
+  padding: 8px 10px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.weight-action-btn:hover {
+  background: #1a4a7a;
+}
+
+.weight-action-btn.primary {
+  background: #1a4a7a;
+  border-color: #2a6aae;
+}
+
+.weight-action-btn.primary:hover {
+  background: #2a6aae;
+}
+
+.timeline-toolbar .divider {
+  width: 1px;
+  height: 24px;
+  background: #0f3460;
+  margin: 0 8px;
+}
+
+.tool-btn {
+  padding: 6px 10px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  color: #8892b0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.tool-btn:hover {
+  background: #1a4a7a;
+  color: #e0e0e0;
+}
+
+.tool-btn.active {
+  background: #e94560;
+  border-color: #e94560;
+  color: #fff;
+}
+
+.onion-skin-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.onion-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #e0e0e0;
+}
+
+.onion-toggle input {
+  cursor: pointer;
+}
+
+.onion-subcontrol {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.onion-subcontrol label {
+  font-size: 0.75rem;
+  color: #8892b0;
+}
+
+.onion-subcontrol input[type="number"] {
+  width: 50px;
+  padding: 4px 6px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 3px;
+  color: #e0e0e0;
+  font-size: 0.75rem;
+}
+
+.onion-subcontrol input[type="range"] {
+  width: 80px;
+  height: 4px;
+  background: #0f3460;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.value-label {
+  font-size: 0.7rem;
+  color: #4ecdc4;
+  min-width: 32px;
+}
+

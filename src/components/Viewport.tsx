@@ -4,6 +4,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useAppStore } from '../store/useAppStore';
 import { getJointWorldPosition, getChildJoints } from '../core/skeleton';
 import { linearBlendSkinning } from '../core/skin';
+import { evaluateAnimation, bakeAnimationToFrames } from '../core/animation';
+import { Skeleton } from '../types';
 
 interface ViewportProps {
   width?: number;
@@ -19,6 +21,7 @@ export default function Viewport({ width = 800, height = 600 }: ViewportProps) {
   const skeletonGroupRef = useRef<THREE.Group | null>(null);
   const ikTargetsGroupRef = useRef<THREE.Group | null>(null);
   const meshGroupRef = useRef<THREE.Group | null>(null);
+  const onionSkinGroupRef = useRef<THREE.Group | null>(null);
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
   const isDraggingRef = useRef(false);
@@ -37,6 +40,13 @@ export default function Viewport({ width = 800, height = 600 }: ViewportProps) {
     solveIk,
     viewportConfig,
     skinData,
+    onionSkinEnabled,
+    onionSkinFramesBefore,
+    onionSkinFramesAfter,
+    onionSkinOpacity,
+    animationClips,
+    currentClipId,
+    currentTime,
   } = useAppStore();
   
   const initScene = useCallback(() => {
@@ -101,6 +111,11 @@ export default function Viewport({ width = 800, height = 600 }: ViewportProps) {
     meshGroup.name = 'meshGroup';
     scene.add(meshGroup);
     meshGroupRef.current = meshGroup;
+    
+    const onionSkinGroup = new THREE.Group();
+    onionSkinGroup.name = 'onionSkinGroup';
+    scene.add(onionSkinGroup);
+    onionSkinGroupRef.current = onionSkinGroup;
     
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -305,6 +320,93 @@ export default function Viewport({ width = 800, height = 600 }: ViewportProps) {
     group.add(mesh);
   }, [skinData, skeleton, viewportConfig.viewMode]);
   
+  const renderOnionSkin = useCallback(() => {
+    if (!onionSkinGroupRef.current) return;
+    
+    const group = onionSkinGroupRef.current;
+    while (group.children.length > 0) {
+      const child = group.children[0];
+      group.remove(child);
+    }
+    
+    if (!onionSkinEnabled) return;
+    
+    const clip = animationClips.find(c => c.id === currentClipId);
+    if (!clip || clip.duration <= 0) return;
+    
+    const fps = clip.fps;
+    const currentFrame = currentTime * fps;
+    
+    const renderGhostPose = (timeOffset: number, color: number, opacityFactor: number) => {
+      const ghostTime = Math.max(0, Math.min(clip.duration, currentTime + timeOffset));
+      const rotations = evaluateAnimation(clip, ghostTime);
+      
+      let ghostSkeleton: Skeleton = { ...skeleton, joints: new Map(skeleton.joints) };
+      rotations.forEach((quat, jointId) => {
+        const joint = ghostSkeleton.joints.get(jointId);
+        if (joint) {
+          const euler = new THREE.Euler().setFromQuaternion(quat);
+          ghostSkeleton.joints.set(jointId, { ...joint, quaternion: quat.clone(), rotation: euler });
+        }
+      });
+      
+      const opacity = onionSkinOpacity * opacityFactor;
+      
+      ghostSkeleton.joints.forEach((joint, jointId) => {
+        const worldPos = getJointWorldPosition(ghostSkeleton, jointId);
+        
+        const jointGeometry = new THREE.SphereGeometry(0.035, 8, 8);
+        const jointMaterial = new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+        });
+        const jointMesh = new THREE.Mesh(jointGeometry, jointMaterial);
+        jointMesh.position.copy(worldPos);
+        group.add(jointMesh);
+        
+        if (joint.parentId) {
+          const parentPos = getJointWorldPosition(ghostSkeleton, joint.parentId);
+          const boneDirection = new THREE.Vector3().subVectors(worldPos, parentPos);
+          const boneLength = boneDirection.length();
+          
+          if (boneLength > 0.001) {
+            const boneGeometry = new THREE.CylinderGeometry(0.015, 0.015, boneLength, 6);
+            const boneMaterial = new THREE.MeshBasicMaterial({
+              color,
+              transparent: true,
+              opacity,
+            });
+            const boneMesh = new THREE.Mesh(boneGeometry, boneMaterial);
+            
+            const midPoint = new THREE.Vector3().addVectors(parentPos, worldPos).multiplyScalar(0.5);
+            boneMesh.position.copy(midPoint);
+            
+            const up = new THREE.Vector3(0, 1, 0);
+            const direction = boneDirection.clone().normalize();
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(up, direction);
+            boneMesh.quaternion.copy(quaternion);
+            
+            group.add(boneMesh);
+          }
+        }
+      });
+    };
+    
+    for (let i = 1; i <= onionSkinFramesBefore; i++) {
+      const factor = 1 - (i - 1) / (onionSkinFramesBefore + 1);
+      renderGhostPose(-i / fps, 0x0088ff, factor * 0.7);
+    }
+    
+    for (let i = 1; i <= onionSkinFramesAfter; i++) {
+      const factor = 1 - (i - 1) / (onionSkinFramesAfter + 1);
+      renderGhostPose(i / fps, 0xff8800, factor * 0.7);
+    }
+  }, [
+    onionSkinEnabled, onionSkinFramesBefore, onionSkinFramesAfter, onionSkinOpacity,
+    animationClips, currentClipId, currentTime, skeleton,
+  ]);
+  
   const handleMouseDown = useCallback((event: MouseEvent) => {
     if (!containerRef.current || !cameraRef.current || !sceneRef.current) return;
     
@@ -425,6 +527,10 @@ export default function Viewport({ width = 800, height = 600 }: ViewportProps) {
   useEffect(() => {
     renderMesh();
   }, [renderMesh]);
+  
+  useEffect(() => {
+    renderOnionSkin();
+  }, [renderOnionSkin]);
   
   useEffect(() => {
     updateGridAndAxes();
