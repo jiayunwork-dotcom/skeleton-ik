@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { 
   Skeleton, IKTarget, IKConfig, Constraint, AnimationClip, 
   SkinData, ViewportConfig, IKAlgorithm, InterpolationType,
-  ViewMode, Mode2D3D
+  ViewMode, Mode2D3D, Keyframe
 } from '../types';
 import { 
   createHumanoidSkeleton 
@@ -74,6 +74,8 @@ interface AppState {
   selectAnimationClip: (clipId: string | null) => void;
   addKeyframe: (jointId: string, frame: number) => void;
   deleteKeyframe: (jointId: string, frame: number) => void;
+  updateKeyframe: (jointId: string, kfIndex: number, updates: Partial<Keyframe>) => void;
+  removeKeyframe: (jointId: string, kfIndex: number) => void;
   setCurrentTime: (time: number) => void;
   setPlaying: (playing: boolean) => void;
   setInterpolation: (type: InterpolationType) => void;
@@ -302,6 +304,84 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!clip) return;
     
     const newClip = removeKeyframe(clip, jointId, frame);
+    set({
+      animationClips: animationClips.map(c => c.id === currentClipId ? newClip : c),
+    });
+  },
+  
+  updateKeyframe: (jointId, kfIndex, updates) => {
+    const { animationClips, currentClipId } = get();
+    const clip = animationClips.find(c => c.id === currentClipId);
+    if (!clip) return;
+    
+    const jointAnim = clip.jointAnimations.get(jointId);
+    if (!jointAnim || kfIndex < 0 || kfIndex >= jointAnim.keyframes.length) return;
+    
+    const newKeyframes = [...jointAnim.keyframes];
+    newKeyframes[kfIndex] = { ...newKeyframes[kfIndex], ...updates };
+    
+    let maxFrame = 0;
+    clip.jointAnimations.forEach((ja) => {
+      ja.keyframes.forEach((kf) => {
+        if (kf.frame > maxFrame) maxFrame = kf.frame;
+      });
+    });
+    newKeyframes.forEach((kf) => {
+      if (kf.frame > maxFrame) maxFrame = kf.frame;
+    });
+    const newDuration = Math.max(clip.duration, (maxFrame + 1) / clip.fps);
+    
+    const newJointAnimations = new Map(clip.jointAnimations);
+    newJointAnimations.set(jointId, { ...jointAnim, keyframes: newKeyframes });
+    
+    const newClip: AnimationClip = {
+      ...clip,
+      duration: newDuration,
+      jointAnimations: newJointAnimations,
+    };
+    
+    set({
+      animationClips: animationClips.map(c => c.id === currentClipId ? newClip : c),
+    });
+  },
+  
+  removeKeyframe: (jointId, kfIndex) => {
+    const { animationClips, currentClipId } = get();
+    const clip = animationClips.find(c => c.id === currentClipId);
+    if (!clip) return;
+    
+    const jointAnim = clip.jointAnimations.get(jointId);
+    if (!jointAnim || kfIndex < 0 || kfIndex >= jointAnim.keyframes.length) return;
+    
+    const newKeyframes = jointAnim.keyframes.filter((_, i) => i !== kfIndex);
+    
+    let maxFrame = 0;
+    clip.jointAnimations.forEach((ja, jid) => {
+      if (jid === jointId) {
+        newKeyframes.forEach((kf) => {
+          if (kf.frame > maxFrame) maxFrame = kf.frame;
+        });
+      } else {
+        ja.keyframes.forEach((kf) => {
+          if (kf.frame > maxFrame) maxFrame = kf.frame;
+        });
+      }
+    });
+    const newDuration = Math.max(0.1, (maxFrame + 1) / clip.fps);
+    
+    const newJointAnimations = new Map(clip.jointAnimations);
+    if (newKeyframes.length > 0) {
+      newJointAnimations.set(jointId, { ...jointAnim, keyframes: newKeyframes });
+    } else {
+      newJointAnimations.delete(jointId);
+    }
+    
+    const newClip: AnimationClip = {
+      ...clip,
+      duration: newDuration,
+      jointAnimations: newJointAnimations,
+    };
+    
     set({
       animationClips: animationClips.map(c => c.id === currentClipId ? newClip : c),
     });

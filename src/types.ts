@@ -66,6 +66,8 @@ export interface Keyframe {
   frame: number;
   rotation: THREE.Quaternion;
   position?: THREE.Vector3;
+  tangentIn?: { x: number; y: number; z: number; w: number };
+  tangentOut?: { x: number; y: number; z: number; w: number };
 }
 
 export interface JointAnimation {

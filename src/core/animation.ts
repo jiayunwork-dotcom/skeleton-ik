@@ -6,7 +6,7 @@ export function createAnimationClip(name: string, fps: number = 30): AnimationCl
   return {
     id: generateId(),
     name,
-    duration: 0,
+    duration: 1,
     fps,
     jointAnimations: new Map(),
     interpolationType: 'bezier',
@@ -54,7 +54,7 @@ export function addKeyframe(
   return {
     ...clip,
     jointAnimations: newJointAnimations,
-    duration: maxFrame / clip.fps,
+    duration: Math.max(clip.duration, (maxFrame + 1) / clip.fps),
   };
 }
 
@@ -74,7 +74,7 @@ export function removeKeyframe(clip: AnimationClip, jointId: string, frame: numb
   return {
     ...clip,
     jointAnimations: newJointAnimations,
-    duration: maxFrame / clip.fps,
+    duration: Math.max(0.1, (maxFrame + 1) / clip.fps),
   };
 }
 
